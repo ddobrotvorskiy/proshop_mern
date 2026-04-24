@@ -98,8 +98,6 @@ cd frontend && npm run build
 ```
 Creates `frontend/build/`. In production (`NODE_ENV=production`), backend serves frontend as static assets (see `server.js:38-43`).
 
-**Heroku deploy:** Procfile specifies `web: node backend/server.js`. Heroku postbuild script (in root `package.json:14`) auto-builds frontend before server start.
-
 ## Common Gotchas
 
 1. **Backend file imports:** Add `.js` extension (e.g., `import User from './models/userModel.js'`) or require fails.
@@ -108,7 +106,3 @@ Creates `frontend/build/`. In production (`NODE_ENV=production`), backend serves
 4. **localStorage persistence:** Cart & user info persist across sessions. No server-side session store; tokens are stateless.
 5. **Admin routes:** Protected by `isAdmin` flag on user doc. `admin` middleware checks `req.user.isAdmin` after `protect` middleware.
 6. **No Redux Toolkit:** Uses classic Redux with action types as constants. Actions are thunks, not slices.
-
-## Project Status
-
-⚠️ **Deprecated:** This is an old Udemy course repo. See [proshop-v2](https://github.com/bradtraversy/proshop-v2) for modern version with Redux Toolkit. Expect outdated packages.

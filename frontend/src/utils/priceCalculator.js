@@ -12,7 +12,7 @@ const addDecimals = (num) => {
  * @param {Object} cart - Cart object containing cartItems, itemsPrice
  * @returns {Object} - Object with calculated prices { itemsPrice, shippingPrice, taxPrice, totalPrice }
  */
-export const calculatePrices = (cart) => {
+const calculatePrices = (cart) => {
   const itemsPrice = addDecimals(
     cart.cartItems.reduce((acc, item) => acc + item.price * item.qty, 0)
   )
@@ -33,4 +33,4 @@ export const calculatePrices = (cart) => {
   }
 }
 
-export default calculatePrices
+module.exports = calculatePrices

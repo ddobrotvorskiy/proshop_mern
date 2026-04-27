@@ -7,6 +7,7 @@ import CheckoutSteps from '../components/CheckoutSteps'
 import { createOrder } from '../actions/orderActions'
 import { ORDER_CREATE_RESET } from '../constants/orderConstants'
 import { USER_DETAILS_RESET } from '../constants/userConstants'
+import { calculatePrices } from '../utils/priceCalculator'
 
 const PlaceOrderScreen = ({ history }) => {
   const dispatch = useDispatch()
@@ -18,21 +19,13 @@ const PlaceOrderScreen = ({ history }) => {
   } else if (!cart.paymentMethod) {
     history.push('/payment')
   }
-  //   Calculate prices
-  const addDecimals = (num) => {
-    return (Math.round(num * 100) / 100).toFixed(2)
-  }
 
-  cart.itemsPrice = addDecimals(
-    cart.cartItems.reduce((acc, item) => acc + item.price * item.qty, 0)
-  )
-  cart.shippingPrice = addDecimals(cart.itemsPrice > 100 ? 0 : 100)
-  cart.taxPrice = addDecimals(Number((0.15 * cart.itemsPrice).toFixed(2)))
-  cart.totalPrice = (
-    Number(cart.itemsPrice) +
-    Number(cart.shippingPrice) +
-    Number(cart.taxPrice)
-  ).toFixed(2)
+  // Calculate prices
+  const prices = calculatePrices(cart)
+  cart.itemsPrice = prices.itemsPrice
+  cart.shippingPrice = prices.shippingPrice
+  cart.taxPrice = prices.taxPrice
+  cart.totalPrice = prices.totalPrice
 
   const orderCreate = useSelector((state) => state.orderCreate)
   const { order, success, error } = orderCreate

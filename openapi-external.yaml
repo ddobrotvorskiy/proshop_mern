@@ -1,0 +1,1150 @@
+openapi: 3.0.3
+
+info:
+  title: ProShop API
+  description: >
+    REST API for the ProShop e-commerce application.
+    Authentication uses JWT Bearer tokens (30-day expiry).
+    Tokens are obtained via `POST /api/users/login` or `POST /api/users`.
+  version: 1.0.0
+  contact:
+    name: ProShop Support
+    url: https://github.com/bradtraversy/proshop_mern
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+
+tags:
+  - name: Products
+    description: Product catalog management
+  - name: Users
+    description: User registration, authentication, and admin management
+  - name: Orders
+    description: Order placement, payment, and delivery
+  - name: Upload
+    description: Image file upload
+  - name: Config
+    description: Client-side configuration values
+
+# ─────────────────────────────────────────────
+# Security scheme
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ─────────────────────────────────────────────
+  # Reusable schemas
+  # ─────────────────────────────────────────────
+  schemas:
+
+    # ── Error ──────────────────────────────────
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Not authorized
+        stack:
+          type: string
+          nullable: true
+          description: Stack trace (only in development mode)
+
+    # ── User ───────────────────────────────────
+    UserPublic:
+      description: User object returned to the authenticated user themselves
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1f3c2e4b0d12345678901
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        isAdmin:
+          type: boolean
+          example: false
+        token:
+          type: string
+          description: JWT Bearer token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    UserAdmin:
+      description: User object returned in admin list/get endpoints (no token)
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1f3c2e4b0d12345678901
+        name:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        isAdmin:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Review ─────────────────────────────────
+    Review:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1f3c2e4b0d12345678902
+        name:
+          type: string
+          description: Reviewer's display name
+          example: John Doe
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+          example: 4
+        comment:
+          type: string
+          example: Great product!
+        user:
+          type: string
+          description: User ObjectId
+          example: 64a1f3c2e4b0d12345678901
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Product ────────────────────────────────
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1f3c2e4b0d12345678910
+        user:
+          type: string
+          description: Owner (admin) user ObjectId
+          example: 64a1f3c2e4b0d12345678901
+        name:
+          type: string
+          example: Airpods Wireless Bluetooth Headphones
+        image:
+          type: string
+          example: /images/airpods.jpg
+        brand:
+          type: string
+          example: Apple
+        category:
+          type: string
+          example: Electronics
+        description:
+          type: string
+          example: Bluetooth technology lets you connect it with compatible devices wirelessly.
+        reviews:
+          type: array
+          items:
+            $ref: '#/components/schemas/Review'
+        rating:
+          type: number
+          example: 4.5
+        numReviews:
+          type: integer
+          example: 12
+        price:
+          type: number
+          format: float
+          example: 89.99
+        countInStock:
+          type: integer
+          example: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProductListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        page:
+          type: integer
+          example: 1
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+
+    # ── Order ──────────────────────────────────
+    OrderItem:
+      type: object
+      required: [name, qty, image, price, product]
+      properties:
+        name:
+          type: string
+          example: Airpods Wireless Bluetooth Headphones
+        qty:
+          type: integer
+          example: 2
+        image:
+          type: string
+          example: /images/airpods.jpg
+        price:
+          type: number
+          format: float
+          example: 89.99
+        product:
+          type: string
+          description: Product ObjectId
+          example: 64a1f3c2e4b0d12345678910
+
+    ShippingAddress:
+      type: object
+      required: [address, city, postalCode, country]
+      properties:
+        address:
+          type: string
+          example: 123 Main St
+        city:
+          type: string
+          example: Boston
+        postalCode:
+          type: string
+          example: "02101"
+        country:
+          type: string
+          example: USA
+
+    PaymentResult:
+      type: object
+      description: PayPal transaction result (populated after payment)
+      properties:
+        id:
+          type: string
+          description: PayPal transaction ID
+          example: PAY-1234567890
+        status:
+          type: string
+          example: COMPLETED
+        update_time:
+          type: string
+          example: "2024-01-15T10:30:00Z"
+        email_address:
+          type: string
+          format: email
+          example: buyer@paypal.com
+
+    Order:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 64a1f3c2e4b0d12345678920
+        user:
+          description: Populated user object (name, email) or ObjectId
+          oneOf:
+            - $ref: '#/components/schemas/UserAdmin'
+            - type: string
+        orderItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddress'
+        paymentMethod:
+          type: string
+          example: PayPal
+        paymentResult:
+          $ref: '#/components/schemas/PaymentResult'
+        taxPrice:
+          type: number
+          format: float
+          example: 14.99
+        shippingPrice:
+          type: number
+          format: float
+          example: 10.00
+        totalPrice:
+          type: number
+          format: float
+          example: 114.98
+        isPaid:
+          type: boolean
+          example: false
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        isDelivered:
+          type: boolean
+          example: false
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+  # ─────────────────────────────────────────────
+  # Reusable responses
+  # ─────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Not authorized — missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Not authorized, token failed
+
+    Forbidden:
+      description: Forbidden — user is not an admin
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Not authorized as an admin
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Product not found
+
+# ─────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════
+  # PRODUCTS
+  # ════════════════════════════════════════════
+
+  /api/products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List products
+      description: >
+        Returns a paginated list of products. Supports optional keyword search
+        (case-insensitive regex on `name`). Page size is fixed at 10.
+      security: []
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: Search term matched against product name (case-insensitive)
+          schema:
+            type: string
+            example: phone
+        - name: pageNumber
+          in: query
+          required: false
+          description: Page number (1-based, defaults to 1)
+          schema:
+            type: integer
+            default: 1
+            example: 2
+      responses:
+        '200':
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Create a product (admin)
+      description: >
+        Creates a new product with placeholder values. The admin should
+        immediately update it via `PUT /api/products/:id`.
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Created product with placeholder data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/products/top:
+    get:
+      tags: [Products]
+      operationId: getTopProducts
+      summary: Get top-rated products
+      description: Returns the top 3 products sorted by rating descending.
+      security: []
+      responses:
+        '200':
+          description: Array of up to 3 top-rated products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+  /api/products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the product
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678910
+
+    get:
+      tags: [Products]
+      operationId: getProductById
+      summary: Get a product by ID
+      security: []
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update a product (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price, description, image, brand, category, countInStock]
+              properties:
+                name:
+                  type: string
+                  example: Updated Product Name
+                price:
+                  type: number
+                  format: float
+                  example: 99.99
+                description:
+                  type: string
+                  example: Updated description text.
+                image:
+                  type: string
+                  example: /images/product.jpg
+                brand:
+                  type: string
+                  example: Sony
+                category:
+                  type: string
+                  example: Electronics
+                countInStock:
+                  type: integer
+                  example: 25
+      responses:
+        '200':
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Products]
+      operationId: deleteProduct
+      summary: Delete a product (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Product removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/products/{id}/reviews:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the product
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678910
+
+    post:
+      tags: [Products]
+      operationId: createProductReview
+      summary: Add a product review
+      description: >
+        Authenticated users can post one review per product.
+        Returns 400 if the user has already reviewed this product.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, comment]
+              properties:
+                rating:
+                  type: number
+                  minimum: 1
+                  maximum: 5
+                  example: 4
+                comment:
+                  type: string
+                  example: Really good quality, would recommend.
+      responses:
+        '201':
+          description: Review added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Review added
+        '400':
+          description: Product already reviewed by this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Product already reviewed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ════════════════════════════════════════════
+  # USERS
+  # ════════════════════════════════════════════
+
+  /api/users:
+    post:
+      tags: [Users]
+      operationId: registerUser
+      summary: Register a new user
+      description: Creates a new user account and returns a JWT token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Jane Doe
+                email:
+                  type: string
+                  format: email
+                  example: jane@example.com
+                password:
+                  type: string
+                  format: password
+                  example: secret123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '400':
+          description: User already exists or invalid data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: User already exists
+
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List all users (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/users/login:
+    post:
+      tags: [Users]
+      operationId: loginUser
+      summary: Authenticate user and get token
+      description: Validates credentials and returns a JWT token on success.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@example.com
+                password:
+                  type: string
+                  format: password
+                  example: secret123
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Invalid email or password
+
+  /api/users/profile:
+    get:
+      tags: [Users]
+      operationId: getUserProfile
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user's profile (no token field)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  _id:
+                    type: string
+                    example: 64a1f3c2e4b0d12345678901
+                  name:
+                    type: string
+                    example: John Doe
+                  email:
+                    type: string
+                    format: email
+                    example: john@example.com
+                  isAdmin:
+                    type: boolean
+                    example: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      operationId: updateUserProfile
+      summary: Update current user profile
+      description: >
+        Updates name, email, and/or password. Returns a new JWT token.
+        All fields are optional — only provided fields are updated.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: John Updated
+                email:
+                  type: string
+                  format: email
+                  example: john.updated@example.com
+                password:
+                  type: string
+                  format: password
+                  description: Provide only to change the password
+                  example: newpassword456
+      responses:
+        '200':
+          description: Updated profile with a fresh JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the target user
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678901
+
+    get:
+      tags: [Users]
+      operationId: getUserById
+      summary: Get user by ID (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User object (password excluded)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAdmin'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Update user by ID (admin)
+      description: >
+        Allows an admin to update another user's name, email, and isAdmin flag.
+        Password is not changed by this endpoint.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Jane Smith
+                email:
+                  type: string
+                  format: email
+                  example: jane.smith@example.com
+                isAdmin:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Updated user (no token field)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  _id:
+                    type: string
+                  name:
+                    type: string
+                  email:
+                    type: string
+                  isAdmin:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete user by ID (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ════════════════════════════════════════════
+  # ORDERS
+  # ════════════════════════════════════════════
+
+  /api/orders:
+    post:
+      tags: [Orders]
+      operationId: createOrder
+      summary: Create a new order
+      description: >
+        Places a new order for the authenticated user.
+        Returns 400 if `orderItems` is an empty array.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderItems, shippingAddress, paymentMethod, itemsPrice, taxPrice, shippingPrice, totalPrice]
+              properties:
+                orderItems:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/OrderItem'
+                shippingAddress:
+                  $ref: '#/components/schemas/ShippingAddress'
+                paymentMethod:
+                  type: string
+                  example: PayPal
+                itemsPrice:
+                  type: number
+                  format: float
+                  description: Subtotal before tax and shipping
+                  example: 179.98
+                taxPrice:
+                  type: number
+                  format: float
+                  example: 26.99
+                shippingPrice:
+                  type: number
+                  format: float
+                  example: 10.00
+                totalPrice:
+                  type: number
+                  format: float
+                  example: 216.97
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: No order items provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: No order items
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Orders]
+      operationId: listOrders
+      summary: List all orders (admin)
+      description: Returns all orders with populated user `id` and `name`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of all orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/orders/myorders:
+    get:
+      tags: [Orders]
+      operationId: getMyOrders
+      summary: List orders for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of the current user's orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/orders/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the order
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678920
+
+    get:
+      tags: [Orders]
+      operationId: getOrderById
+      summary: Get order by ID
+      description: Returns order with populated user `name` and `email`.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/orders/{id}/pay:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the order
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678920
+
+    put:
+      tags: [Orders]
+      operationId: updateOrderToPaid
+      summary: Mark order as paid
+      description: >
+        Called after a successful PayPal transaction. Accepts the PayPal
+        payment result object and sets `isPaid = true` and `paidAt` timestamp.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, status, update_time, payer]
+              properties:
+                id:
+                  type: string
+                  description: PayPal transaction ID
+                  example: PAY-9876543210
+                status:
+                  type: string
+                  example: COMPLETED
+                update_time:
+                  type: string
+                  example: "2024-01-15T10:30:00Z"
+                payer:
+                  type: object
+                  required: [email_address]
+                  properties:
+                    email_address:
+                      type: string
+                      format: email
+                      example: buyer@paypal.com
+      responses:
+        '200':
+          description: Updated order with isPaid=true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/orders/{id}/deliver:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: MongoDB ObjectId of the order
+        schema:
+          type: string
+          example: 64a1f3c2e4b0d12345678920
+
+    put:
+      tags: [Orders]
+      operationId: updateOrderToDelivered
+      summary: Mark order as delivered (admin)
+      description: Sets `isDelivered = true` and `deliveredAt` to the current timestamp.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated order with isDelivered=true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ════════════════════════════════════════════
+  # UPLOAD
+  # ════════════════════════════════════════════
+
+  /api/upload:
+    post:
+      tags: [Upload]
+      operationId: uploadImage
+      summary: Upload a product image
+      description: >
+        Accepts a single image file (`jpg`, `jpeg`, or `png`).
+        Returns the server-relative path to the saved file.
+        Files are saved to `uploads/` with the pattern `image-{timestamp}.ext`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file (jpg/jpeg/png only)
+      responses:
+        '200':
+          description: Path to the uploaded file
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: /uploads/image-1705312200000.jpg
+        '400':
+          description: File type not accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: Images only!
+
+  # ════════════════════════════════════════════
+  # CONFIG
+  # ════════════════════════════════════════════
+
+  /api/config/paypal:
+    get:
+      tags: [Config]
+      operationId: getPaypalClientId
+      summary: Get PayPal client ID
+      description: >
+        Returns the PayPal sandbox/live client ID from server environment.
+        Used by the frontend to initialise the PayPal JS SDK.
+      security: []
+      responses:
+        '200':
+          description: PayPal client ID string
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: AZDxjDScFpQtjWTOUtWKbyN_bDt4OgqaF4eYXlewfBP4-8aqIgmkgWXkhZmZFvwkroZ_jPlwskAxiSpY

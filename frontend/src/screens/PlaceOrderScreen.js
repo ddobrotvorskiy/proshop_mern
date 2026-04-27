@@ -21,11 +21,15 @@ const PlaceOrderScreen = ({ history }) => {
   }
 
   // Calculate prices
-  const prices = calculatePrices(cart)
-  cart.itemsPrice = prices.itemsPrice
-  cart.shippingPrice = prices.shippingPrice
-  cart.taxPrice = prices.taxPrice
-  cart.totalPrice = prices.totalPrice
+  try {
+    const prices = calculatePrices(cart)
+    cart.itemsPrice = prices.itemsPrice
+    cart.shippingPrice = prices.shippingPrice
+    cart.taxPrice = prices.taxPrice
+    cart.totalPrice = prices.totalPrice
+  } catch (error) {
+    console.error('Failed to calculate prices:', error)
+  }
 
   const orderCreate = useSelector((state) => state.orderCreate)
   const { order, success, error } = orderCreate

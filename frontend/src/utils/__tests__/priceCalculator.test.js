@@ -175,19 +175,19 @@ describe('calculatePrices', () => {
     it('should throw error when cartItems is undefined', () => {
       const cart = {}
       expect(() => calculatePrices(cart)).toThrow(
-        "Cannot read properties of undefined (reading 'reduce')"
+        'Invalid cart: cartItems must be an array'
       )
     })
 
     it('should throw error when cart is null', () => {
       expect(() => calculatePrices(null)).toThrow(
-        "Cannot read properties of null (reading 'cartItems')"
+        'Invalid cart: cart is required and must be an object'
       )
     })
 
     it('should throw error when cart is undefined', () => {
       expect(() => calculatePrices(undefined)).toThrow(
-        "Cannot read properties of undefined (reading 'cartItems')"
+        'Invalid cart: cart is required and must be an object'
       )
     })
 
@@ -196,7 +196,7 @@ describe('calculatePrices', () => {
         cartItems: 'not an array',
       }
       expect(() => calculatePrices(cart)).toThrow(
-        "cart.cartItems.reduce is not a function"
+        'Invalid cart: cartItems must be an array'
       )
     })
 
@@ -205,7 +205,7 @@ describe('calculatePrices', () => {
         cartItems: null,
       }
       expect(() => calculatePrices(cart)).toThrow(
-        "Cannot read properties of null (reading 'reduce')"
+        'Invalid cart: cartItems must be an array'
       )
     })
   })

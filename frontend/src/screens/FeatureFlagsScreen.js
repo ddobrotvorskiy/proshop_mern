@@ -6,17 +6,22 @@ import { FEATURE_RESET } from '../constants/featureConstants'
 
 const FeatureFlagsScreen = () => {
   const dispatch = useDispatch()
-  const { features, loading, error } = useSelector((state) => state.featureList)
+  const featureList = useSelector((state) => state.featureList)
+  const { features = [], loading = false, error = null } = featureList || {}
+  
+  const featureSetState = useSelector((state) => state.featureSetState)
   const {
-    loading: stateLoading,
-    error: stateError,
-    success: stateSuccess,
-  } = useSelector((state) => state.featureSetState)
+    loading: stateLoading = false,
+    error: stateError = null,
+    success: stateSuccess = false,
+  } = featureSetState || {}
+  
+  const featureAdjustTraffic = useSelector((state) => state.featureAdjustTraffic)
   const {
-    loading: trafficLoading,
-    error: trafficError,
-    success: trafficSuccess,
-  } = useSelector((state) => state.featureAdjustTraffic)
+    loading: trafficLoading = false,
+    error: trafficError = null,
+    success: trafficSuccess = false,
+  } = featureAdjustTraffic || {}
 
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')

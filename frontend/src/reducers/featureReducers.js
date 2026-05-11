@@ -17,14 +17,14 @@ import {
 /**
  * Feature list reducer - all features
  */
-export const featureListReducer = (state = { features: [] }, action) => {
+export const featureListReducer = (state = { loading: false, features: [] }, action) => {
   switch (action.type) {
     case FEATURE_LIST_REQUEST:
-      return { loading: true, features: [] }
+      return { loading: true, features: state.features }
     case FEATURE_LIST_SUCCESS:
       return { loading: false, features: action.payload }
     case FEATURE_LIST_FAIL:
-      return { loading: false, error: action.payload }
+      return { loading: false, error: action.payload, features: [] }
     default:
       return state
   }
@@ -50,18 +50,18 @@ export const featureDetailsReducer = (state = { feature: {} }, action) => {
  * Feature set state reducer
  */
 export const featureSetStateReducer = (
-  state = { loading: false, success: false },
+  state = { loading: false, success: false, feature: null },
   action
 ) => {
   switch (action.type) {
     case FEATURE_SET_STATE_REQUEST:
-      return { loading: true }
+      return { loading: true, success: false, feature: null }
     case FEATURE_SET_STATE_SUCCESS:
       return { loading: false, success: true, feature: action.payload }
     case FEATURE_SET_STATE_FAIL:
-      return { loading: false, error: action.payload }
+      return { loading: false, error: action.payload, success: false, feature: null }
     case FEATURE_RESET:
-      return { loading: false, success: false }
+      return { loading: false, success: false, feature: null }
     default:
       return state
   }
@@ -71,18 +71,18 @@ export const featureSetStateReducer = (
  * Feature adjust traffic reducer
  */
 export const featureAdjustTrafficReducer = (
-  state = { loading: false, success: false },
+  state = { loading: false, success: false, feature: null },
   action
 ) => {
   switch (action.type) {
     case FEATURE_ADJUST_TRAFFIC_REQUEST:
-      return { loading: true }
+      return { loading: true, success: false, feature: null }
     case FEATURE_ADJUST_TRAFFIC_SUCCESS:
       return { loading: false, success: true, feature: action.payload }
     case FEATURE_ADJUST_TRAFFIC_FAIL:
-      return { loading: false, error: action.payload }
+      return { loading: false, error: action.payload, success: false, feature: null }
     case FEATURE_RESET:
-      return { loading: false, success: false }
+      return { loading: false, success: false, feature: null }
     default:
       return state
   }

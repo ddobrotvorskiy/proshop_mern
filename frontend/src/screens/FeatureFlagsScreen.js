@@ -4,8 +4,12 @@ import { Table, Button, Form, Alert, Badge, Spinner, Modal } from 'react-bootstr
 import { listFeatures, setFeatureState, adjustTrafficRollout } from '../actions/featureActions'
 import { FEATURE_RESET } from '../constants/featureConstants'
 
-const FeatureFlagsScreen = () => {
+const FeatureFlagsScreen = ({ history }) => {
   const dispatch = useDispatch()
+
+  const userLogin = useSelector((state) => state.userLogin)
+  const { userInfo } = userLogin
+
   const featureList = useSelector((state) => state.featureList)
   const { features = [], loading = false, error = null } = featureList || {}
   
@@ -28,26 +32,40 @@ const FeatureFlagsScreen = () => {
   const [editingFeature, setEditingFeature] = useState(null)
   const [trafficPercentage, setTrafficPercentage] = useState(0)
   const [showModal, setShowModal] = useState(false)
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+
+  // Redirect if not logged in or not admin
+  useEffect(() => {
+    if (!userInfo || !userInfo.isAdmin) {
+      history.push('/login')
+    }
+  }, [userInfo, history])
 
   // Load features on mount and setup auto-refresh
   useEffect(() => {
-    dispatch(listFeatures())
-
-    // Setup auto-refresh every 7 seconds
-    const interval = setInterval(() => {
+    if (userInfo && userInfo.isAdmin) {
       dispatch(listFeatures())
-    }, 7000)
-
-    return () => {
-      if (interval) clearInterval(interval)
+//
+//      // Setup auto-refresh every 7 seconds
+//      const interval = setInterval(() => {
+//        dispatch(listFeatures())
+//      }, 7000)
+//
+//      return () => {
+//        if (interval) clearInterval(interval)
+//      }
     }
-  }, [dispatch])
+  }, [dispatch, userInfo])
 
   // Handle state change success
   useEffect(() => {
     if (stateSuccess) {
       setShowModal(false)
-      dispatch({ type: FEATURE_RESET })
+      setShowSuccessAlert(true)
+      setTimeout(() => {
+        setShowSuccessAlert(false)
+        dispatch({ type: FEATURE_RESET })
+      }, 3000)
     }
   }, [stateSuccess, dispatch])
 
@@ -55,7 +73,11 @@ const FeatureFlagsScreen = () => {
   useEffect(() => {
     if (trafficSuccess) {
       setShowModal(false)
-      dispatch({ type: FEATURE_RESET })
+      setShowSuccessAlert(true)
+      setTimeout(() => {
+        setShowSuccessAlert(false)
+        dispatch({ type: FEATURE_RESET })
+      }, 3000)
     }
   }, [trafficSuccess, dispatch])
 
@@ -103,7 +125,7 @@ const FeatureFlagsScreen = () => {
     if (status === 'Enabled') variant = 'success'
     if (status === 'Testing') variant = 'warning'
     if (status === 'Disabled') variant = 'danger'
-    return <Badge bg={variant}>{status}</Badge>
+    return <Badge variant={variant}>{status}</Badge>
   }
 
   const getTrafficColor = (percentage) => {
@@ -123,8 +145,8 @@ const FeatureFlagsScreen = () => {
       {trafficError && (
         <Alert variant="danger">Traffic Error: {trafficError}</Alert>
       )}
-      {(stateSuccess || trafficSuccess) && (
-        <Alert variant="success" dismissible onClose={() => {}}>
+      {showSuccessAlert && (
+        <Alert variant="success" dismissible onClose={() => setShowSuccessAlert(false)}>
           Feature updated successfully!
         </Alert>
       )}
@@ -145,7 +167,8 @@ const FeatureFlagsScreen = () => {
         <div className="col-md-6">
           <Form.Group>
             <Form.Label>Filter by Status</Form.Label>
-            <Form.Select
+            <Form.Control
+              as='select'
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -153,7 +176,7 @@ const FeatureFlagsScreen = () => {
               <option value="Enabled">Enabled</option>
               <option value="Testing">Testing</option>
               <option value="Disabled">Disabled</option>
-            </Form.Select>
+            </Form.Control>
           </Form.Group>
         </div>
       </div>
@@ -336,12 +359,15 @@ const FeatureFlagsScreen = () => {
               </p>
               <Form.Group>
                 <Form.Label>Traffic Percentage ({trafficPercentage}%)</Form.Label>
-                <Form.Range
+                <input
+                  type="range"
+                  className="form-control-range"
                   min={0}
                   max={100}
                   step={5}
                   value={trafficPercentage}
                   onChange={(e) => setTrafficPercentage(e.target.value)}
+                  style={{ width: '100%' }}
                 />
               </Form.Group>
               <Form.Group className="mt-3">

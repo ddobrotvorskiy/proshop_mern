@@ -28,6 +28,12 @@ import {
   orderListMyReducer,
   orderListReducer,
 } from './reducers/orderReducers'
+import {
+  featureListReducer,
+  featureDetailsReducer,
+  featureSetStateReducer,
+  featureAdjustTrafficReducer,
+} from './reducers/featureReducers'
 
 const reducer = combineReducers({
   productList: productListReducer,
@@ -51,6 +57,10 @@ const reducer = combineReducers({
   orderDeliver: orderDeliverReducer,
   orderListMy: orderListMyReducer,
   orderList: orderListReducer,
+  featureList: featureListReducer,
+  featureDetails: featureDetailsReducer,
+  featureSetState: featureSetStateReducer,
+  featureAdjustTraffic: featureAdjustTrafficReducer,
 })
 
 const cartItemsFromStorage = localStorage.getItem('cartItems')

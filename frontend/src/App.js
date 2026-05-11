@@ -18,6 +18,7 @@ import UserEditScreen from './screens/UserEditScreen'
 import ProductListScreen from './screens/ProductListScreen'
 import ProductEditScreen from './screens/ProductEditScreen'
 import OrderListScreen from './screens/OrderListScreen'
+import FeatureFlagsScreen from './screens/FeatureFlagsScreen'
 
 const App = () => {
   return (
@@ -46,9 +47,10 @@ const App = () => {
             component={ProductListScreen}
             exact
           />
-          <Route path='/admin/product/:id/edit' component={ProductEditScreen} />
-          <Route path='/admin/orderlist' component={OrderListScreen} />
-          <Route path='/search/:keyword' component={HomeScreen} exact />
+           <Route path='/admin/product/:id/edit' component={ProductEditScreen} />
+           <Route path='/admin/orderlist' component={OrderListScreen} />
+           <Route path='/admin/feature-flags' component={FeatureFlagsScreen} />
+           <Route path='/search/:keyword' component={HomeScreen} exact />
           <Route path='/page/:pageNumber' component={HomeScreen} exact />
           <Route
             path='/search/:keyword/page/:pageNumber'

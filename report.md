@@ -68,4 +68,95 @@
 }
 ```
 
-### MCP-сервер
+### Feature flags MCP — полный лог
+Полный текст сессии [m3-part1-mcp-session-log.md](sessions%2Fm3-part1-mcp-session-log.md)
+
+**Дата прогона:** 2026-05-15
+
+#### Шаг 1 — get_feature_info
+
+**Tool call:** `get_feature_info(feature_id="search_v2")`
+
+**Ответ MCP:**
+```json
+{
+  "feature_id": "search_v2",
+  "name": "New Search Algorithm",
+  "description": "Replaces legacy regex-based keyword matching with a hybrid BM25 + TF-IDF ranking pipeline. Improves relevance for multi-word queries and handles common misspellings via fuzzy matching. Backend: new productController search path; index built on name, brand, category, description fields.",
+  "status": "Disabled",
+  "traffic_percentage": 0,
+  "last_modified": "2026-05-15",
+  "targeted_segments": ["beta_users", "internal"],
+  "rollout_strategy": "canary"
+}
+```
+
+**Вывод:** статус `Disabled` — необходимо перевести в `Testing`.
+
+#### Шаг 2 — set_feature_state
+
+**Tool call:** `set_feature_state(feature_id="search_v2", state="Testing")`
+
+**Ответ MCP:**
+```json
+{
+  "feature_id": "search_v2",
+  "name": "New Search Algorithm",
+  "status": "Testing",
+  "traffic_percentage": 10,
+  "last_modified": "2026-05-15",
+  "targeted_segments": ["beta_users", "internal"],
+  "rollout_strategy": "canary"
+}
+```
+
+**Вывод:** статус изменён на `Testing`, трафик автоматически выставлен на 10% (дефолт для Testing).
+
+#### Шаг 3 — adjust_traffic_rollout
+
+**Tool call:** `adjust_traffic_rollout(feature_id="search_v2", percentage=25)`
+
+**Ответ MCP:**
+```json
+{
+  "feature_id": "search_v2",
+  "name": "New Search Algorithm",
+  "status": "Testing",
+  "traffic_percentage": 25,
+  "last_modified": "2026-05-15",
+  "targeted_segments": ["beta_users", "internal"],
+  "rollout_strategy": "canary"
+}
+```
+
+**Вывод:** трафик выставлен на 25%.
+
+#### Шаг 4 — get_feature_info (подтверждение)
+
+**Tool call:** `get_feature_info(feature_id="search_v2")`
+
+**Ответ MCP:**
+```json
+{
+  "feature_id": "search_v2",
+  "name": "New Search Algorithm",
+  "description": "Replaces legacy regex-based keyword matching with a hybrid BM25 + TF-IDF ranking pipeline. Improves relevance for multi-word queries and handles common misspellings via fuzzy matching. Backend: new productController search path; index built on name, brand, category, description fields.",
+  "status": "Testing",
+  "traffic_percentage": 25,
+  "last_modified": "2026-05-15",
+  "targeted_segments": ["beta_users", "internal"],
+  "rollout_strategy": "canary"
+}
+```
+
+#### Итоговое состояние фичи search_v2
+
+| Поле               | Значение                  |
+|--------------------|---------------------------|
+| feature_id         | search_v2                 |
+| name               | New Search Algorithm      |
+| status             | Testing                   |
+| traffic_percentage | 25                        |
+| rollout_strategy   | canary                    |
+| targeted_segments  | beta_users, internal      |
+| last_modified      | 2026-05-15                |

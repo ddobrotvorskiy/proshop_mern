@@ -2,8 +2,8 @@
   "search_v2": {
     "name": "New Search Algorithm",
     "description": "Replaces legacy regex-based keyword matching with a hybrid BM25 + TF-IDF ranking pipeline. Improves relevance for multi-word queries and handles common misspellings via fuzzy matching. Backend: new productController search path; index built on name, brand, category, description fields.",
-    "status": "Disabled",
-    "traffic_percentage": 0,
+    "status": "Testing",
+    "traffic_percentage": 25,
     "last_modified": "2026-05-15",
     "targeted_segments": [
       "beta_users",

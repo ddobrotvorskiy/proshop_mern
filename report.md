@@ -33,3 +33,39 @@
 - Сколько заняло бы вручную: 2 дня 
 - Самая магическая функция IDE: пока что все это воспринимается как магия
 - Где AI сломал и как пофиксил: AI указал неверный URL на коммит. Использовал URL проекта anomaly/opencode. Исправлено руками.
+
+# M3 — Report
+
+## Часть 1 — Feature Flags MCP server
+
+### Feature-Flags API & Page
+
+Реализован API и страница для управления фича-флагами.
+- API http://localhost:3000/api/features
+- Страница http://localhost:3000/admin/feature-flags
+
+Состояние флагов хранится в json-файле ./backend/feature.json
+Файл перезаписывается при изменениях.
+
+### MCP-сервер
+
+Реализован MCP сервер для управления feature-флагами Proshop MERN
+Код MCP сервера на python, FastMCP
+Основной файл [server.py](mcp/server.py)
+Добавлен Bash скрипт для подключения env-переменных из ./mcp/.env, а не настроек opencode, так как там секреты.
+
+Пример подключения для opencode. project-level `opencode.json`
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "proshop-features": {
+      "type": "local",
+      "command": ["/Users/dobrotvorskiy/repo/AI/proshop_mern/mcp/run_server.sh"],
+      "enabled": true
+    }
+  }
+}
+```
+
+### MCP-сервер

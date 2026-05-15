@@ -24,6 +24,17 @@ class ProShopClient:
         self.config = config
         self.http_client = http_client
 
+    async def list_features(self) -> dict:
+        """
+        Get all feature flags as a list.
+        
+        Calls: GET /api/features
+        
+        Returns:
+            dict: Object with "features" list or error object from backend.
+        """
+        return await self._request("GET", "/api/features")
+
     async def get_feature(self, feature_id: str) -> dict:
         """
         Get feature information.

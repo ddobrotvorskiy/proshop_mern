@@ -80,6 +80,74 @@ async def get_feature_info(feature_id: str) -> dict:
 
 
 @mcp.tool()
+async def list_features() -> dict:
+    """
+    Получить все фича-флаги одним запросом в виде списка.
+
+    Возвращает массив объектов фич. Каждый объект содержит те же поля, что и
+    get_feature_info: feature_id, name, description, status, traffic_percentage,
+    last_modified, и опционально targeted_segments, rollout_strategy, dependencies.
+
+    КОГДА ВЫЗЫВАТЬ:
+    - Когда нужно получить обзор всех флагов сразу: для аудита, отчёта или
+      выявления флагов с определённым статусом (например, все Testing-флаги).
+    - При поиске флага, feature_id которого неизвестен ��� можно просмотреть список
+      и найти нужный по name или description.
+    - Для проверки зависимостей: убедиться, что все предшеству��щие флаги имеют
+      нужный статус перед включением зависимого флага.
+    - Чтобы найти флаги-кандидаты на cleanup: статус Enabled, last_modified
+      давно в прошлом — признак flag debt.
+
+    КОГДА НЕ ВЫЗЫВАТЬ:
+    - Если feature_id уже известен — используй get_feature_info: он быстрее
+      и возвращает только нужную запись.
+    - Для изменения состояния любого флага — используй set_feature_state или
+      adjust_traffic_rollout.
+    - Если в текущем диалоге полный список уже был получен и не менялся —
+      повторный вызов только тратит время.
+
+    Returns:
+        Объект с полем "features" — массив всех фича-объектов,
+        либо объект ошибки:
+        - FILE_READ_ERROR — файл features.json недоступен.
+        - JSON_PARSE_ERROR — файл содержит невалидный JSON.
+
+    Examples:
+        >>> await list_features()
+        {
+            "features": [
+                {
+                    "feature_id": "search_v2",
+                    "name": "New Search Algorithm",
+                    "status": "Testing",
+                    "traffic_percentage": 15,
+                    "last_modified": "2026-03-10",
+                    ...
+                },
+                {
+                    "feature_id": "dark_mode",
+                    "name": "Dark Mode Theme",
+                    "status": "Testing",
+                    "traffic_percentage": 20,
+                    "last_modified": "2026-04-20",
+                    ...
+                },
+                ...
+            ]
+        }
+
+        # Найти все флаги в статусе Testing:
+        # Вызвать list_features(), затем отфильтровать по status == "Testing".
+
+        # Проверить зависимости перед включением photo_reviews:
+        # Вызвать list_features(), найти reviews_moderation,
+        # убедиться что его status == "Enabled".
+    """
+    client = await _get_client()
+    return await client.list_features()
+
+
+@mcp.tool()
 async def set_feature_state(feature_id: str, state: str) -> dict:
     """
     Изменить статус фича-флага: Disabled, Testing или Enabled.

@@ -178,3 +178,17 @@ Creates `frontend/build/`. In production (`NODE_ENV=production`), Express serves
 9. **Bootstrap CSS is vendored:** `frontend/src/bootstrap.min.css` is a local copy, imported in `index.js`. Do not expect to import Bootstrap from `node_modules` — it's not there as a direct stylesheet dependency.
 10. **`morgan` logger** is active in dev mode only (`NODE_ENV === 'development'`). It logs HTTP requests to stdout.
 11. **Seeder is destructive:** `npm run data:import` calls `destroyData()` before inserting. Running it on production will wipe all real data.
+
+---
+
+## Поиск по документации продукта proshop_mern (search-docs MCP)
+
+- При любых вопросах про функционал, фичи, архитектуру, ADR, runbooks, incidents — **СНАЧАЛА** использовать `search_project_docs` MCP. Это быстрее и возвращает релевантные чанки с метаданными.
+- **ТОЛЬКО** если vector search не дал нужных результатов или нужно полное содержимое файла из метаданных найденного чанка → fallback на `grep`+`read`.
+- **НЕ** начинать с `grep`+`read` по проекту — медленно и дорого по токенам.
+
+## Управление feature flags (feature-flags MCP)
+
+- Когда пользователь спрашивает статус фичи ("какой статус у `gift_message`?", "включена ли `search_v2`?") — использовать `get_feature_info` tool из feature-flags MCP, не читать `features.json` напрямую.
+- Когда пользователь хочет изменить статус ("включи фичу X", "переведи Y в Testing", "поставь трафик 25%") — использовать соответствующие tools (`set_feature_state`, `adjust_traffic_rollout`). **Никогда** не редактировать `backend/features.json` вручную через Edit/Write.
+- Когда пользователь просит список всех фич — использовать `list_features` tool, не grep'ать файл.

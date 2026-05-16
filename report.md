@@ -402,4 +402,116 @@ Sam `search_v2` не имеет никаких зависимостей («Depen
 
 Дополнительно найден более ранний checkout-related incident **i-001** (2023-11-04): PayPal Sandbox Webhook Double-Charge — `onApprove` callback сработал дважды, из-за отсутствия idempotency check на `PUT /api/orders/:id/pay` 7 заказов получили дубликаты paymentResult, 3 товара — двойной декремент stock (один до -1). Фикс: guard `if (order.isPaid) return` + защита в middleware.
 
+### End-to-end
+
+Дата прогона: 2026-05-16
+
+Шаг 1: поиск документации через search-docs MCP
+**Tool:** `search_project_docs("semantic_search feature description dependencies", top_k=5)`
+Результат (5 чанков, score 0.579 — 0.536):
+
+| # | score | source_file | snippet |
+|---|-------|-------------|---------|
+| 1 | 0.5790 | `feature-flags-spec.md` | `### Search & Discovery #### search_v2 — New Search Algorithm` |
+| 2 | 0.5663 | `feature-flags-spec.md` | `### Example Feature Object "search_v2": {...}` |
+| 3 | 0.5570 | `catalog.md` | `## Feature 9: SEO Meta Tags` |
+| 4 | 0.5518 | `feature-flags-spec.md` | `### Naming Conventions` |
+| 5 | 0.5364 | `feature-flags-spec.md` | `### Tool 2: set_feature_state` |
+
+Первый запрос не вернул чанк именно по `semantic_search` (vector search отдал по `search_v2`). Поэтому сделан уточняющий поиск.
+
+Шаг 2: проверка состояния через feature-flags MCP
+**Tool:** `get_feature_info(feature_id="semantic_search")`
+Ответ:
+```json
+{
+  "feature_id": "semantic_search",
+  "name": "Semantic Vector Search",
+  "description": "Augments keyword search with embedding-based semantic similarity. Products are encoded at index time; queries are embedded at runtime and matched via cosine similarity. Requires search_v2 to be Enabled first. Significantly improves discovery for natural-language queries like 'good headphones for running'.",
+  "status": "Disabled",
+  "traffic_percentage": 0,
+  "last_modified": "2026-02-14",
+  "targeted_segments": ["internal"],
+  "rollout_strategy": "canary",
+  "dependencies": ["search_v2"]
+}
+```
+**Вывод:** статус `Disabled`, но есть зависимость `search_v2`. Нужно проверить её.
+
+Шаг 3: проверка зависимости
+**Tool:** `get_feature_info(feature_id="search_v2")`
+Ответ:
+```json
+{
+  "feature_id": "search_v2",
+  "name": "New Search Algorithm",
+  "description": "Replaces legacy regex-based keyword matching with a hybrid BM25 + TF-IDF ranking pipeline...",
+  "status": "Testing",
+  "traffic_percentage": 25,
+  "last_modified": "2026-05-15",
+  "targeted_segments": ["beta_users", "internal"],
+  "rollout_strategy": "canary"
+}
+```
+**Вывод:** `search_v2` в статусе `Testing` (не `Disabled`) — условие «зависимость не в Disabled» выполнено.
+
+Шаг 4: перевод semantic_search в Testing
+**Tool:** `set_feature_state(feature_id="semantic_search", state="Testing")`
+Ответ:
+```json
+{
+  "feature_id": "semantic_search",
+  "name": "Semantic Vector Search",
+  "status": "Testing",
+  "traffic_percentage": 10,
+  "last_modified": "2026-05-16",
+  "targeted_segments": ["internal"],
+  "rollout_strategy": "canary",
+  "dependencies": ["search_v2"],
+  "warnings": ["Dependency 'search_v2' is in status 'Testing', not 'Enabled'. semantic_search may not function correctly."]
+}
+```
+`traffic_percentage` выставлен на 10 (дефолт при переходе в Testing).
+
+Шаг 5: установка трафика 25%
+**Tool:** `adjust_traffic_rollout(feature_id="semantic_search", percentage=25)`
+Ответ:
+```json
+{
+  "feature_id": "semantic_search",
+  "name": "Semantic Vector Search",
+  "status": "Testing",
+  "traffic_percentage": 25,
+  "last_modified": "2026-05-16",
+  "targeted_segments": ["internal"],
+  "rollout_strategy": "canary",
+  "dependencies": ["search_v2"]
+}
+```
+
+Итоговое состояние фичи:
+
+| Поле               | Значение                  |
+|--------------------|---------------------------|
+| feature_id         | semantic_search           |
+| name               | Semantic Vector Search    |
+| status             | Testing                   |
+| traffic_percentage | 25                        |
+| rollout_strategy   | canary                    |
+| targeted_segments  | internal                  |
+| dependencies       | [`search_v2`]             |
+| last_modified      | 2026-05-16                |
+
+Предупреждение: `search_v2` ещё в `Testing`, а не `Enabled` — семантический поиск может давать инконсистентные результаты по сравнению со стандартным.
+
+Цитата из документации (feature-flags-spec.md, строка 324):
+
+> Extends `search_v2` with embedding-based retrieval. Product embeddings are pre-computed and stored; at query time, the user's search string is embedded and matched by cosine similarity. Dramatically improves discoverability for natural-language queries ("something warm to wear for a hike") that keyword search cannot handle.
+>
+> **System impact:** New embedding pipeline (background job), vector index on Product collection, extended productController search endpoint. High infrastructure cost — requires GPU or embedding API budget.
+>
+> **Typical rollout:** Internal only → 5% beta → 25% after precision metrics validation.
+>
+> **Dependencies:** `search_v2` must be `"Enabled"` first. If `search_v2` is still in Testing, semantic search results and keyword results will be inconsistent across user sessions.
+
 

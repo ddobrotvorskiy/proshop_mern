@@ -70,20 +70,29 @@ DB_URL = build_db_url(_env)
 
 def embed_query(text: str) -> list[float]:
     """Embed a single query string using the same bge-m3 model used for ingestion."""
-    payload = json.dumps({"model": MODEL, "input": [text]}).encode("utf-8")
-    req = urllib.request.Request(
-        OLLAMA_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-    return result["embeddings"][0]
+    try:
+        payload = json.dumps({"model": MODEL, "input": [text]}).encode("utf-8")
+        req = urllib.request.Request(
+            OLLAMA_URL,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        return result["embeddings"][0]
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"cannot reach Ollama at {OLLAMA_URL} ({e.reason})")
+    except KeyError:
+        raise RuntimeError("unexpected response from Ollama embedding endpoint")
 
 # ---------------------------------------------------------------------------
 # Core: cosine similarity search in pgvector
 # ---------------------------------------------------------------------------
+
+class SearchError(Exception):
+    """Raised when search fails due to infrastructure errors."""
+    pass
 
 def search(
     query: str,
@@ -97,6 +106,11 @@ def search(
 
     Returns list of dicts with:
         score, chunk_id, source_file, doc_type, title, section_heading, text (truncated)
+
+    Raises:
+        RuntimeError: Ollama unreachable or bad response
+        ConnectionError: PostgreSQL unreachable
+        SearchError: Query execution failed
     """
     query_vec = embed_query(query)
 
@@ -137,6 +151,10 @@ def search(
         cur = conn.cursor()
         cur.execute(sql, params)
         rows = cur.fetchall()
+    except psycopg2.OperationalError as e:
+        raise ConnectionError(f"database connection failed ({e})")
+    except psycopg2.ProgrammingError as e:
+        raise SearchError(f"query failed ({e})")
     finally:
         conn.close()
 
@@ -162,6 +180,7 @@ def search(
 def print_result(result: dict, idx: int):
     print(f"  [{idx}] score={result['score']}")
     print(f"       source: {result['source_file']}")
+    print(f"       path:   {result['file_path']}")
     print(f"       type:   {result['doc_type']}")
     print(f"       heading: {result['section_heading']}")
     text = result['text']
@@ -239,6 +258,9 @@ def run_demo():
 # ---------------------------------------------------------------------------
 
 def run_single(query: str, top_k: int, doc_type: str | None, source_file: str | None):
+    if not query.strip():
+        print("Error: search query must not be empty")
+        raise SystemExit(1)
     results = search(query, top_k=top_k, doc_type=doc_type, source_file=source_file)
     if not results:
         print("(no results)")
@@ -258,8 +280,11 @@ def main():
     parser.add_argument("--source", dest="source_file", default=None, help="Filter by source_file name")
     args = parser.parse_args()
 
-    if args.query:
+    if args.query is not None and args.query.strip():
         run_single(args.query, args.top_k, args.doc_type, args.source_file)
+    elif args.query is not None:
+        print("Error: search query must not be empty")
+        raise SystemExit(1)
     else:
         run_demo()
 

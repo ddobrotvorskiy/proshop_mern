@@ -41,7 +41,7 @@ All tools communicate with ProShop's feature flags API endpoints:
 
 1. **Create virtual environment:**
    ```bash
-   cd mcp
+   cd mcp-proshop-features
    python3.11 -m venv venv
    source venv/bin/activate
    ```

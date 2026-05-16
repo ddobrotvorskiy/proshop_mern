@@ -22,7 +22,7 @@ from pathlib import Path
 from query import search as _search
 
 try:
-    from mcp.server.fastmcp import FastMCP
+    from fastmcp import FastMCP
 except ImportError:
     print("Install FastMCP: pip install mcp")
     raise
@@ -70,6 +70,9 @@ def search_project_docs(query: str, top_k: int = 5) -> list[dict]:
         query: Natural-language search query (in English or Russian).
         top_k:  Maximum number of results to return (default 5).
     """
+    if not query.strip():
+        raise ValueError("search query must not be empty")
+
     raw_results = _search(query, top_k)
 
     results: list[dict] = []
